@@ -62,18 +62,13 @@
 " problem.
 "
 " Install:
-" To use, place this file in your standard vim scripts directory, and source
-" it while editing the file you wish to close tags in.  If the filetype is not
-" set or the file is some sort of template with embedded HTML, you may force
-" HTML style tag matching by first defining the b:closetag_html_style buffer
-" variable.  Otherwise, the default is XML style tag matching.
+" To use, place this file in your standard vim plugin directory. You may force
+" HTML style tag matching by first defining the g:closetag_html_style variable.
+" Otherwise, the default is XML style tag matching.
 "
 " Example:
-"   :let b:closetag_html_style=1
+"   :let g:closetag_html_style=1
 "   :source ~/.vim/scripts/closetag.vim
-"
-" For greater convenience, load this script in an autocommand:
-"   :au Filetype html,xml,xsl source ~/.vim/scripts/closetag.vim
 "
 " Also, set noignorecase for html files or edit b:unaryTagsStack to match your
 " capitalization style.  You may set this variable before or after loading the
@@ -81,14 +76,15 @@
 "
 " Configuration Variables:
 "
+" g:unaryTagsStack        Global setting, can be overridden by: 
 " b:unaryTagsStack        Buffer local string containing a whitespace
 "                         seperated list of element names that should be
 "                         ignored while finding matching closetags.  Checking
 "                         is done according to the current setting of the
 "                         ignorecase option.
 "
-" b:closetag_html_style   Define this (as with let b:closetag_html_style=1)
-"                         and source the script again to set the
+" g:closetag_html_style   Define this (as with let g:closetag_html_style=1)
+"                         and source the script to set the
 "                         unaryTagsStack to its default value for html.
 "
 " b:closetag_disable_synID  Define this to disable comment checking if tag
@@ -96,6 +92,16 @@
 "                         without having to source again.
 "
 " Changelog:
+" Nov 04, 2009 by Ingo Karkat
+"   * Added global default setting g:unaryTagsStack that is overriden by
+"     b:unaryTagsStack to avoid those nasty script errors in filetypes for which
+"     the script hasn't been sourced. 
+"     The script is now a Vim plugin, and is sourced on Vim startup. 
+"   * Adapted g:closetag_html_style to more "modern" HTML. 
+"   * Changed :imap to map-expr for Vim 7+. 
+"   * Added highlighting for "no opening tags" and improved error highlighting
+"     elsewhere. 
+"
 " May 24, 2005 Tuesday
 "   * Changed function names to be script-local to avoid conflicts with other
 "     scripts' stack implementations.
@@ -123,11 +129,11 @@
 
 " if html, don't close certain tags.  Works best if ignorecase is set.
 " otherwise, capitalize these elements according to your html editing style
-if !exists("b:unaryTagsStack") || exists("b:closetag_html_style")
-    if &filetype == "html" || exists("b:closetag_html_style")
-	let b:unaryTagsStack="area base br dd dt hr img input link meta param"
+if !exists("g:unaryTagsStack")
+    if exists("g:closetag_html_style")
+	let g:unaryTagsStack= "area base br col hr img input link meta param"
     else " for xsl and xsl
-	let b:unaryTagsStack=""
+	let g:unaryTagsStack=""
     endif
 endif
 
@@ -138,8 +144,12 @@ endif
 let loaded_closetag=1
 
 " set up mappings for tag closing
-inoremap <C-_> <C-R>=GetCloseTag()<CR>
-map <C-_> a<C-_><ESC>
+if v:version < 700
+inoremap <C-_> <C-R>=<SID>GetCloseTag()<CR>
+else
+inoremap <expr> <C-_> <SID>GetCloseTag()
+endif
+nmap <C-_> a<C-_><Esc>
 
 "------------------------------------------------------------------------------
 " Tag closer - uses the stringstack implementation below
@@ -147,7 +157,7 @@ map <C-_> a<C-_><ESC>
 
 " Returns the most recent unclosed tag-name
 " (ignores tags in the variable referenced by a:unaryTagsStack)
-function! GetLastOpenTag(unaryTagsStack)
+function! s:GetLastOpenTag(unaryTagsStack)
     " Search backwards through the file line by line using getline()
     " Overall strategy (moving backwards through the file from the cursor):
     "  Push closing tags onto a stack.
@@ -208,10 +218,9 @@ function! GetLastOpenTag(unaryTagsStack)
 		    call s:Pop("b:TagStack")	"found a open/close tag pair
 		    "echo linenum." ".b:TagStack
 		elseif !s:Instack(tag, a:unaryTagsStack) "we have a mismatch error
-		    echohl Error
-		    echon "\rError:"
+		    echohl ErrorMsg
+		    echo "tag mismatch: <".tag."> doesn't match <".endtag.">.  (Line ".linenum." Tagstack: ".b:TagStack.")"
 		    echohl None
-		    echo " tag mismatch: <".tag."> doesn't match <".endtag.">.  (Line ".linenum." Tagstack: ".b:TagStack.")"
 		    return ""
 		endif
 	    endif
@@ -219,14 +228,16 @@ function! GetLastOpenTag(unaryTagsStack)
 	let linenum=linenum-1 | let first=0
     endwhile
     " At this point, we have exhausted the file and not found any opening tag
+    echohl WarningMsg
     echo "No opening tags."
+    echohl None
     return ""
 endfunction
 
 " Returns closing tag for most recent unclosed tag, respecting the
 " current setting of b:unaryTagsStack for tags that should not be closed
-function! GetCloseTag()
-    let tag=GetLastOpenTag("b:unaryTagsStack")
+function! s:GetCloseTag()
+    let tag = s:GetLastOpenTag((exists("b:unaryTagsStack") ? "b:unaryTagsStack" : "g:unaryTagsStack"))
     if tag == ""
 	return ""
     else
