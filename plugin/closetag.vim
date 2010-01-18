@@ -92,6 +92,9 @@
 "                         without having to source again.
 "
 " Changelog:
+" Dec 02, 2009 by Ingo Karkat
+"   * Added 'embed' tag to g:unaryTagsStack. 
+"
 " Nov 04, 2009 by Ingo Karkat
 "   * Added global default setting g:unaryTagsStack that is overriden by
 "     b:unaryTagsStack to avoid those nasty script errors in filetypes for which
@@ -131,7 +134,7 @@
 " otherwise, capitalize these elements according to your html editing style
 if !exists("g:unaryTagsStack")
     if exists("g:closetag_html_style")
-	let g:unaryTagsStack= "area base br col hr img input link meta param"
+	let g:unaryTagsStack= "area base br col embed hr img input link meta param"
     else " for xsl and xsl
 	let g:unaryTagsStack=""
     endif
