@@ -91,10 +91,21 @@
 "                         closing is too slow.  This can be set or unset
 "                         without having to source again.
 "
+" g:closetag_fill_content Set to 0 if you don't want to jump inside an inserted
+"                         tag to fill in content in case there is none yet. 
+"
 " Changelog:
+" Jan 21, 2010 by Ingo Karkat
+"   * ENH: In insert mode, jump inside tag if the tag has no content; i.e. the
+"     corresponding open tag is only separated by whitespace from the closing
+"     tag. Any whitespace spacing style is mirrored: If there are <Tab>
+"     characters after the open tag, a <Tab> is prepended before the closing
+"     tag, too. Same for spaces and newline. (Vim 7+ only.) 
+"   * Made g:IsKeywordBak script-local. 
+"
 " Jan 19, 2010 by Ingo Karkat
 "   * Modified normal mode <C-_> mapping to detect whether the cursor is on the
-"     beginning of a tag, and inserts / appends accordingly.
+"     beginning of a tag, and inserts / appends accordingly. (Vim 7+ only.) 
 "
 " Dec 02, 2009 by Ingo Karkat
 "   * Added 'embed' tag to g:unaryTagsStack. 
@@ -130,6 +141,12 @@
 "
 "   * Expanded documentation
 
+" Has this already been loaded?
+if exists("loaded_closetag")
+    finish
+endif
+let loaded_closetag=1
+
 "------------------------------------------------------------------------------
 " User configurable settings
 "------------------------------------------------------------------------------
@@ -144,13 +161,13 @@ if !exists("g:unaryTagsStack")
     endif
 endif
 
-" Has this already been loaded?
-if exists("loaded_closetag")
-    finish
+if !exists("g:closetag_fill_content")
+    let g:closetag_fill_content = (v:version >= 700)
 endif
-let loaded_closetag=1
 
-" set up mappings for tag closing
+"------------------------------------------------------------------------------
+" Set up mappings for tag closing
+"------------------------------------------------------------------------------
 if v:version < 700
 inoremap <C-_> <C-R>=<SID>GetCloseTag('i')<CR>
 nmap <C-_> a<C-_><Esc>
@@ -251,7 +268,7 @@ function! s:GetCloseTag(mode)
 
     let tag = '</'.tagname.'>'
     if a:mode ==# 'i'
-	return tag
+	return g:closetag_fill_content ? s:CheckForEmptyContent(tagname, tag) : tag
     elseif a:mode ==# 'n'
 	" For normal mode, detect whether the cursor is on the beginning of a
 	" tag, and insert / append accordingly. 
@@ -274,6 +291,28 @@ function! s:InCommentAt(line, col)
 endfunction
 
 "------------------------------------------------------------------------------
+" Movement inside empty tag. 
+"------------------------------------------------------------------------------
+function! s:CheckForEmptyContent(tagname, tag)
+    let [line, col, matchNum] = searchpos('<' . a:tagname . '\%(\_s\|\_s\_[^>]*[^/]\)\?>\%(\(\)\|\(\t\+\)\|\(\s\+\)\|\(\s*\n\_s*\)\)\%#', 'bcnpW')
+    if matchNum == 0
+	" No empty tag before cursor. 
+	return a:tag
+    elseif matchNum == 2
+	" Empty tag directly before cursor. 
+	return a:tag . repeat("\<Left>", strlen(a:tag))
+    elseif matchNum == 3 || matchNum == 4
+	" Empty tag and <Tab> / whitespace before cursor. 
+	return (matchNum == 3 ? "\t" : ' ') . a:tag . repeat("\<Left>", strlen(a:tag) + 1)
+    elseif matchNum == 5
+	" Empty tag and newline before cursor. 
+	return "$\n" . a:tag . "\<Up>\<End>\<BS>"
+    else
+	throw 'ASSERT: Invalid matchNum: ' . matchNum
+    endif
+endfunction
+
+"------------------------------------------------------------------------------
 " String Stacks
 "------------------------------------------------------------------------------
 " These are strings of whitespace-separated elements, matched using the \< and
@@ -285,12 +324,12 @@ endfunction
 
 " Helper functions
 function! s:SetKeywords()
-    let g:IsKeywordBak=&iskeyword
+    let s:IsKeywordBak=&iskeyword
     let &iskeyword="33-255"
 endfunction
 
 function! s:RestoreKeywords()
-    let &iskeyword=g:IsKeywordBak
+    let &iskeyword=s:IsKeywordBak
 endfunction
 
 " Push el onto the stack referenced by sname
