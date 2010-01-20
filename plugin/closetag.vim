@@ -92,6 +92,10 @@
 "                         without having to source again.
 "
 " Changelog:
+" Jan 19, 2010 by Ingo Karkat
+"   * Modified normal mode <C-_> mapping to detect whether the cursor is on the
+"     beginning of a tag, and inserts / appends accordingly.
+"
 " Dec 02, 2009 by Ingo Karkat
 "   * Added 'embed' tag to g:unaryTagsStack. 
 "
@@ -149,14 +153,25 @@ let loaded_closetag=1
 " set up mappings for tag closing
 if v:version < 700
 inoremap <C-_> <C-R>=<SID>GetCloseTag()<CR>
+nmap <C-_> a<C-_><Esc>
 else
 inoremap <expr> <C-_> <SID>GetCloseTag()
+nnoremap <expr> <C-_> <SID>DoCloseTag()
 endif
-nmap <C-_> a<C-_><Esc>
 
 "------------------------------------------------------------------------------
 " Tag closer - uses the stringstack implementation below
 "------------------------------------------------------------------------------
+
+" Returns normal mode commands to close the tag at the cursor position. 
+" It automatically detects whether the cursor is on the beginning of a tag, and
+" inserts / appends accordingly. 
+function! s:DoCloseTag()
+    let l:closeTag = s:GetCloseTag()
+    if empty(l:closeTag) | return '' | endif
+    let l:insertCmd = (matchstr(getline('.'), '\%' . col('.') . 'c.') ==# '<' ? 'i' : 'a')
+    return l:insertCmd . l:closeTag . "\<Esc>"
+endfunction
 
 " Returns the most recent unclosed tag-name
 " (ignores tags in the variable referenced by a:unaryTagsStack)
@@ -199,8 +214,8 @@ function! s:GetLastOpenTag(unaryTagsStack)
 		let tag=matchstr(line,tagpat)
 		
 		if exists("b:closetag_disable_synID") || startInComment==s:InCommentAt(linenum, b:TagCol)
-		  let b:TagLine=linenum
-		  call s:Push(matchstr(tag,'[^<>]\+'),"b:lineTagStack")
+		    let b:TagLine=linenum
+		    call s:Push(matchstr(tag,'[^<>]\+'),"b:lineTagStack")
 		endif
 		"echo "Tag: ".tag." ending at position ".mpos." in '".line."'."
 		let lineend=lineend-mpos
