@@ -152,26 +152,16 @@ let loaded_closetag=1
 
 " set up mappings for tag closing
 if v:version < 700
-inoremap <C-_> <C-R>=<SID>GetCloseTag()<CR>
+inoremap <C-_> <C-R>=<SID>GetCloseTag('i')<CR>
 nmap <C-_> a<C-_><Esc>
 else
-inoremap <expr> <C-_> <SID>GetCloseTag()
-nnoremap <expr> <C-_> <SID>DoCloseTag()
+inoremap <expr> <C-_> <SID>GetCloseTag('i')
+nnoremap <expr> <C-_> <SID>GetCloseTag('n')
 endif
 
 "------------------------------------------------------------------------------
 " Tag closer - uses the stringstack implementation below
 "------------------------------------------------------------------------------
-
-" Returns normal mode commands to close the tag at the cursor position. 
-" It automatically detects whether the cursor is on the beginning of a tag, and
-" inserts / appends accordingly. 
-function! s:DoCloseTag()
-    let l:closeTag = s:GetCloseTag()
-    if empty(l:closeTag) | return '' | endif
-    let l:insertCmd = (matchstr(getline('.'), '\%' . col('.') . 'c.') ==# '<' ? 'i' : 'a')
-    return l:insertCmd . l:closeTag . "\<Esc>"
-endfunction
 
 " Returns the most recent unclosed tag-name
 " (ignores tags in the variable referenced by a:unaryTagsStack)
@@ -252,14 +242,23 @@ function! s:GetLastOpenTag(unaryTagsStack)
     return ""
 endfunction
 
-" Returns closing tag for most recent unclosed tag, respecting the
-" current setting of b:unaryTagsStack for tags that should not be closed
-function! s:GetCloseTag()
-    let tag = s:GetLastOpenTag((exists("b:unaryTagsStack") ? "b:unaryTagsStack" : "g:unaryTagsStack"))
-    if tag == ""
-	return ""
+" Returns insert / normal mode commands to close the most recent unclosed tag. 
+function! s:GetCloseTag(mode)
+    let tagname = s:GetLastOpenTag((exists('b:unaryTagsStack') ? 'b:unaryTagsStack' : 'g:unaryTagsStack'))
+    if tagname == ''
+	return ''
+    endif
+
+    let tag = '</'.tagname.'>'
+    if a:mode ==# 'i'
+	return tag
+    elseif a:mode ==# 'n'
+	" For normal mode, detect whether the cursor is on the beginning of a
+	" tag, and insert / append accordingly. 
+	let insertCmd = (matchstr(getline('.'), '\%' . col('.') . 'c.') ==# '<' ? 'i' : 'a')
+	return insertCmd . tag . "\<Esc>"
     else
-	return "</".tag.">"
+	throw 'ASSERT: Unsupported mode: ' . a:mode
     endif
 endfunction
 
