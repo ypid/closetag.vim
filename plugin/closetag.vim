@@ -101,6 +101,8 @@
 "     tag. Any whitespace spacing style is mirrored: If there are <Tab>
 "     characters after the open tag, a <Tab> is prepended before the closing
 "     tag, too. Same for spaces and newline. (Vim 7+ only.) 
+"     If you don't want to insert content, invoke the CTRL-_ mapping immediately
+"     again; it'll make the cursor jump to after the end tag. 
 "   * Made g:IsKeywordBak script-local. 
 "
 " Jan 19, 2010 by Ingo Karkat
@@ -259,6 +261,9 @@ function! s:GetLastOpenTag(unaryTagsStack)
     return ""
 endfunction
 
+if v:version >= 700
+    let s:lastFillPos = []
+endif
 " Returns insert / normal mode commands to close the most recent unclosed tag. 
 function! s:GetCloseTag(mode)
     let tagname = s:GetLastOpenTag((exists('b:unaryTagsStack') ? 'b:unaryTagsStack' : 'g:unaryTagsStack'))
@@ -268,6 +273,15 @@ function! s:GetCloseTag(mode)
 
     let tag = '</'.tagname.'>'
     if a:mode ==# 'i'
+	if g:closetag_fill_content && getpos('.') == s:lastFillPos && tag ==# s:lastTag
+	    " Command repeated at the last fill position; skip insert of
+	    " contents and jump to end of tag. 
+	    " Note: If the tag was closed in a new line, we first need to go to
+	    " that line. We don't use the / command to avoid clobbing the search
+	    " history. 
+	    return "\<Esc>" . (line('.') == s:lastEndTagLine ? '' :  s:lastEndTagLine . 'G0') . 'f>a'
+	endif
+
 	return g:closetag_fill_content ? s:CheckForEmptyContent(tagname, tag) : tag
     elseif a:mode ==# 'n'
 	" For normal mode, detect whether the cursor is on the beginning of a
@@ -294,22 +308,29 @@ endfunction
 " Movement inside empty tag. 
 "------------------------------------------------------------------------------
 function! s:CheckForEmptyContent(tagname, tag)
+    let tagAndMovement = ''
     let [line, col, matchNum] = searchpos('<' . a:tagname . '\%(\_s\|\_s\_[^>]*[^/]\)\?>\%(\(\)\|\(\t\+\)\|\(\s\+\)\|\(\s*\n\_s*\)\)\%#', 'bcnpW')
     if matchNum == 0
 	" No empty tag before cursor. 
 	return a:tag
     elseif matchNum == 2
 	" Empty tag directly before cursor. 
-	return a:tag . repeat("\<Left>", strlen(a:tag))
+	let tagAndMovement = a:tag . repeat("\<Left>", strlen(a:tag))
     elseif matchNum == 3 || matchNum == 4
 	" Empty tag and <Tab> / whitespace before cursor. 
-	return (matchNum == 3 ? "\t" : ' ') . a:tag . repeat("\<Left>", strlen(a:tag) + 1)
+	let tagAndMovement = (matchNum == 3 ? "\t" : ' ') . a:tag . repeat("\<Left>", strlen(a:tag) + 1)
     elseif matchNum == 5
 	" Empty tag and newline before cursor. 
-	return "$\n" . a:tag . "\<Up>\<End>\<BS>"
+	let tagAndMovement = "$\n" . a:tag . "\<Up>\<End>\<BS>"
     else
 	throw 'ASSERT: Invalid matchNum: ' . matchNum
     endif
+
+    let s:lastFillPos = getpos('.')
+    let s:lastTag = a:tag
+    let s:lastEndTagLine = line('.') + (matchNum == 5 ? 1 : 0)
+
+    return tagAndMovement
 endfunction
 
 "------------------------------------------------------------------------------
