@@ -2,17 +2,17 @@
 " Summary: Functions and mappings to close open HTML/XML tags
 " Uses: <C-_> -- close matching open tag
 " Author: Steven Mueller <diffusor@ugcs.caltech.edu>
-" Last Modified: Tue May 24 13:29:48 PDT 2005 
+" Last Modified: Tue May 24 13:29:48 PDT 2005
 " Version: 0.9.1
 " XXX - breaks if close attempted while XIM is in preedit mode
 " TODO - allow usability as a global plugin -
-"    Add g:unaryTagsStack - always contains html tags settings
+"    Add g:unaryTagsStack - always contains HTML tags settings
 "    and g:closetag_default_xml - user should define this to default to xml
 "    When a close is attempted but b:unaryTagsStack undefined,
-"    use b:closetag_html_style to determine if the file is to be treated
-"    as html or xml.  Failing that, check the filetype for xml or html.
-"    Finally, default to g:closetag_html_style.
-"    If the file is html, let b:unaryTagsStack=g:unaryTagsStack
+"    use b:closetag_HTML_style to determine if the file is to be treated
+"    as HTML or xml.  Failing that, check the filetype for xml or HTML.
+"    Finally, default to g:closetag_HTML_style.
+"    If the file is HTML, let b:unaryTagsStack=g:unaryTagsStack
 "    otherwise, let b:unaryTagsStack=""
 " TODO - make matching work for all comments
 "  -- kinda works now, but needs syn sync minlines to be very long
@@ -27,14 +27,14 @@
 "  -- check up on map <blah> \FuncName
 "
 " Description:
-" This script eases redundant typing when writing html or xml files (even if
-" you're very good with ctrl-p and ctrl-n  :).  Hitting ctrl-_ will initiate a
-" search for the most recent open tag above that is not closed in the
-" intervening space and then insert the matching close tag at the cursor.  In
-" normal mode, the close tag is inserted one character after cursor rather than
-" at it, as if a<C-_> had been used.  This allows putting close tags at the
-" ends of lines while in normal mode, but disallows inserting them in the
-" first column.
+" This script eases redundant typing when writing HTML or xml files (even if
+" you're very good with ctrl-p and ctrl-n :).  Hitting ctrl-_ or <Leader>ae
+" will initiate a search for the most recent open tag above that is not closed
+" in the intervening space and then insert the matching close tag at the
+" cursor.  In normal mode, the close tag is inserted one character after
+" cursor rather than at it, as if a<C-_> had been used.  This allows putting
+" close tags at the ends of lines while in normal mode, but disallows
+" inserting them in the first column.
 "
 " For HTML, a configurable list of tags are ignored in the matching process.
 " By default, the following tags will not be matched and thus not closed
@@ -44,7 +44,7 @@
 " For XML, all tags must have a closing match or be terminated by />, as in
 " <empty-element/>.  These empty element tags are ignored for matching.
 "
-" Comment checking is now handled by vim's internal syntax checking.  If tag
+" Comment checking is now handled by Vim's internal syntax checking.  If tag
 " closing is initiated outside a comment, only tags outside of comments will
 " be matched.  When closing tags in comments, only tags within comments will
 " be matched, skipping any non-commented out code (wee!).  However, the
@@ -53,7 +53,7 @@
 " out of sync, or really slow if syn sync minlines is large.
 " Set the b:closetag_disable_synID variable to disable this feature if you
 " have really big chunks of comment in your code and closing tags is too slow.
-" 
+"
 " If syntax highlighting is not enabled, comments will not be handled very
 " well.  Commenting out HTML in certain ways may cause a "tag mismatch"
 " message and no completion.  For example, '<!--a href="blah">link!</a-->'
@@ -70,29 +70,29 @@
 "   :let g:closetag_html_style=1
 "   :source ~/.vim/scripts/closetag.vim
 "
-" Also, set noignorecase for html files or edit b:unaryTagsStack to match your
+" Also, set noignorecase for HTML files or edit b:unaryTagsStack to match your
 " capitalization style.  You may set this variable before or after loading the
 " script, or simply change the file itself.
 "
 " Configuration Variables:
 "
-" g:unaryTagsStack        Global setting, can be overridden by: 
+" g:unaryTagsStack        Global setting, can be overridden by:
 " b:unaryTagsStack        Buffer local string containing a whitespace
-"                         seperated list of element names that should be
+"                         separated list of element names that should be
 "                         ignored while finding matching closetags.  Checking
 "                         is done according to the current setting of the
 "                         ignorecase option.
 "
 " g:closetag_html_style   Define this (as with let g:closetag_html_style=1)
 "                         and source the script to set the
-"                         unaryTagsStack to its default value for html.
+"                         unaryTagsStack to its default value for HTML.
 "
 " b:closetag_disable_synID  Define this to disable comment checking if tag
 "                         closing is too slow.  This can be set or unset
 "                         without having to source again.
 "
 " g:closetag_fill_content Set to 0 if you don't want to jump inside an inserted
-"                         tag to fill in content in case there is none yet. 
+"                         tag to fill in content in case there is none yet.
 "
 " Changelog:
 " Jan 21, 2010 by Ingo Karkat
@@ -100,27 +100,27 @@
 "     corresponding open tag is only separated by whitespace from the closing
 "     tag. Any whitespace spacing style is mirrored: If there are <Tab>
 "     characters after the open tag, a <Tab> is prepended before the closing
-"     tag, too. Same for spaces and newline. (Vim 7+ only.) 
+"     tag, too. Same for spaces and newline. (Vim 7+ only.)
 "     If you don't want to insert content, invoke the CTRL-_ mapping immediately
-"     again; it'll make the cursor jump to after the end tag. 
-"   * Made g:IsKeywordBak script-local. 
+"     again; it'll make the cursor jump to after the end tag.
+"   * Made g:IsKeywordBak script-local.
 "
 " Jan 19, 2010 by Ingo Karkat
 "   * Modified normal mode <C-_> mapping to detect whether the cursor is on the
-"     beginning of a tag, and inserts / appends accordingly. (Vim 7+ only.) 
+"     beginning of a tag, and inserts / appends accordingly. (Vim 7+ only.)
 "
 " Dec 02, 2009 by Ingo Karkat
-"   * Added 'embed' tag to g:unaryTagsStack. 
+"   * Added 'embed' tag to g:unaryTagsStack.
 "
 " Nov 04, 2009 by Ingo Karkat
 "   * Added global default setting g:unaryTagsStack that is overriden by
 "     b:unaryTagsStack to avoid those nasty script errors in filetypes for which
-"     the script hasn't been sourced. 
-"     The script is now a Vim plugin, and is sourced on Vim startup. 
-"   * Adapted g:closetag_html_style to more "modern" HTML. 
-"   * Changed :imap to map-expr for Vim 7+. 
+"     the script hasn't been sourced.
+"     The script is now a Vim plugin, and is sourced on Vim startup.
+"   * Adapted g:closetag_html_style to more "modern" HTML.
+"   * Changed :imap to map-expr for Vim 7+.
 "   * Added highlighting for "no opening tags" and improved error highlighting
-"     elsewhere. 
+"     elsewhere.
 "
 " May 24, 2005 Tuesday
 "   * Changed function names to be script-local to avoid conflicts with other
@@ -137,11 +137,12 @@
 "       - When tag closing fails or finds no match, no longer adds to the undo
 "         buffer for recent vim 6.0 development versions.
 "       - However, clears the last message when closing tags in normal mode
-"   
+"
 "   * Changed the closetag_html_style variable to be buffer-local rather than
 "     global.
 "
 "   * Expanded documentation
+
 
 " Has this already been loaded?
 if exists("loaded_closetag")
@@ -176,6 +177,8 @@ nmap <C-_> a<C-_><Esc>
 else
 inoremap <expr> <C-_> <SID>GetCloseTag('i')
 nnoremap <expr> <C-_> <SID>GetCloseTag('n')
+inoremap <expr> <Leader>ae <SID>GetCloseTag('i')
+nnoremap <expr> <Leader>ae <SID>GetCloseTag('n')
 endif
 
 "------------------------------------------------------------------------------
